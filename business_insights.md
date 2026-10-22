@@ -135,79 +135,143 @@ Cross-reference highly volatile stores with recent sales trends (Q4) and recent 
 ## Q8. Is store underperformance mainly driven by declining customer traffic or lower spending per customer?
 
 ### Findings
-The analysis identified 1,070 stores with declining average daily sales over the two eight-week comparison periods.
+The analysis identified 1,070 stores experiencing declines in average daily sales when comparing the latest eight weeks with the previous eight weeks.
 
-Among the stores with the largest sales declines, reduced customer traffic was generally the main contributing component.
-
-Store 39 recorded a 34.80% decrease in average daily sales, accompanied by a 33.81% decline in customer traffic and a 1.49% reduction in sales per customer.
-
-Store 657 experienced a 27.54% decrease in customer traffic, despite a 2.99% increase in sales per customer.
-
-In contrast, Store 971 experienced a larger relative decline in sales per customer (-11.75%) than in customer traffic (-5.11%).
+Among these stores, 1,009 (94.3%) recorded sales declines primarily associated with reduced customer traffic, while 61 stores (5.7%) experienced larger relative reductions in sales per customer.
 
 ### Interpretation
-The results suggest that reduced customer traffic is the main component associated with sales deterioration in several of the stores examined.
+The results indicate that declining customer traffic is the predominant component associated with recent sales deterioration across the analysed stores.
 
-However, lower sales per customer also contributes to declining sales in some stores, indicating that different stores may require different areas of investigation.
+However, the widespread nature of these declines suggests that common temporal factors may be influencing store performance.
 
-The widespread decline across the dataset also raises the possibility of common temporal factors affecting store performance.
+These findings identify which component of sales has deteriorated, but do not establish the underlying causes of declining customer traffic.
 
 ### Further Investigation
-Compare recent changes in sales and customer traffic against stores with the same Store Type and Assortment over the same periods.
+Investigate whether seasonal patterns and promotional activity are associated with the widespread reduction in customer traffic.
 
-Investigate whether seasonal patterns, promotional activity, or differences in store characteristics are associated with the observed declines.
+Compare individual store declines against changes observed in stores of the same Store Type and Assortment during the same periods to identify stores experiencing unusually severe deterioration.
 
-## Q9. 
+## Q9. How much do promotions increase sales and customer traffic across stores?
 
 ### Findings
-Results from the SQL analysis.
+Across the Rossmann network, average daily sales were €8,228.28 on promotional days, compared with €5,929.41 on non-promotional days, representing a 38.77% increase.
+
+Average daily customer traffic was approximately 844 customers during promotions, compared with 697 on non-promotional days, an increase of approximately 21.1%.
+
+At store level, Stores 198, 607, and 543 recorded the highest observed sales uplift, at 144.93%, 117.24%, and 110.16%, respectively.
 
 ### Interpretation
-What the findings suggest about store performance.
+Promotional days are associated with higher average daily sales and customer traffic across the Rossmann network.
+
+The percentage difference in sales is greater than the difference in customer traffic, suggesting that sales per customer may also vary between promotional and non-promotional days.
+
+However, promotional performance varies substantially between stores. Store 543, despite performing below its peer benchmark in Q5, recorded one of the highest promotional sales uplifts.
+
+These findings show associations rather than causal effects, as promotional scheduling and seasonal patterns may influence the observed differences.
 
 ### Further Investigation
-Potential actions based on the findings.
+Investigate which stores generate a particularly large share of their sales during promotional periods and which show relatively weak promotional uplift (Q10).
 
-## Q10. 
+Examine whether the observed differences remain consistent when comparing similar days of the week and seasonal periods.
+
+## Q10. Which stores are highly dependent on promotions, and which stores show weak promotional uplift?
 
 ### Findings
-Results from the SQL analysis.
+Stores 198, 607, and 575 recorded the highest promotional sales concentration gaps, at 21.70, 18.99, and 18.25 percentage points, respectively.
+
+Store 198 generated 66.84% of its total sales during promotional days, although promotions accounted for only 45.14% of its operating days.
+
+At the opposite end, Store 274 recorded a negative promotional sales uplift of 6.95%, while Stores 262 and 948 showed relatively weak positive uplifts of 2.15% and 2.71%, respectively.
 
 ### Interpretation
-What the findings suggest about store performance.
+The results reveal substantial differences in promotional sales patterns across Rossmann stores.
+
+Some stores generate a disproportionately large share of their sales during promotional periods, while others show limited differences between promotional and non-promotional sales.
+
+Interestingly, Store 262 ranks among the highest-performing stores in both daily sales and customer traffic (Q1 and Q2), despite showing weak promotional uplift.
+
+Store 274 presents a different pattern: it performs 52.42% below its peer benchmark (Q5) and records negative promotional uplift, but has also experienced recent sustained sales growth (Q4).
+
+These findings suggest that promotional sales concentration, overall store performance, and recent sales trends do not necessarily follow the same patterns.
 
 ### Further Investigation
-Potential actions based on the findings.
+Investigate whether weak promotional uplift remains consistent after accounting for differences in day-of-week and seasonal patterns.
 
-## Q11. 
+Examine whether stores with high promotional sales concentration experience substantially lower sales and customer traffic during non-promotional periods.
+
+## Q11. How does competition distance and the opening of nearby competitors relate to store performance?
 
 ### Findings
-Results from the SQL analysis.
+The analysis found no consistent negative relationship between competitor proximity and average daily sales across Store Type and Assortment groups.
+
+For example, Type A stores with Assortment C located within 500 metres of a competitor generated €8,709.06 in average daily sales, compared with €7,035.33 for stores whose nearest competitor was over 5 km away.
+
+The competitor-opening analysis included 172 stores meeting the minimum observation requirements.
+
+Stores 839, 882, and 461 recorded the largest observed declines in average daily sales following competitor openings, at 36.33%, 35.80%, and 32.31%, respectively.
+
+However, other stores experienced increases. Stores 138 and 8 recorded increases of 30.74% and 26.31%, respectively.
 
 ### Interpretation
-What the findings suggest about store performance.
+The findings suggest that competitor proximity alone does not consistently explain differences in store performance.
+
+Similarly, competitor openings were followed by both increases and decreases in sales, indicating that the relationship varies across stores.
+
+Store 902 is particularly relevant for further investigation, as it recorded a 19.53% decline following a competitor opening and was also identified as experiencing recent and sustained sales deterioration in Q4 and Q6.
+
+These associations do not establish that competitor openings caused the observed sales changes.
 
 ### Further Investigation
-Potential actions based on the findings.
+Compare sales changes around competitor openings with those of similar stores over the same calendar periods to assess whether the observed declines exceed broader seasonal or market patterns.
 
-## Q12. 
+Examine whether stores experiencing substantial declines following competitor openings also show reductions in customer traffic or sales per customer.
+
+Further investigate Store 902 as a potential early-warning case, while accounting for overlapping observation periods and other performance factors.
+
+## Q12. How do Store Type and Assortment relate to sales, customer traffic, and sales per customer?
 
 ### Findings
-Results from the SQL analysis.
+Store Type B recorded some of the highest average daily sales and customer traffic figures. However, this category contains only 17 stores, and the B + C combination consists of a single store, limiting the reliability of broader comparisons.
+
+Across Store Types A, C, and D, stores with Assortment C recorded higher average daily sales than those with Assortment A.
+
+For example, Type A stores with Assortment C generated €7,577.77 per operating day, compared with €6,526.68 for Type A stores with Assortment A, a difference of approximately 16.1%.
+
+Store Type D recorded the highest sales per customer, with €11.38 for Assortment C and €11.02 for Assortment A, despite having lower average daily customer traffic than several other store groups.
 
 ### Interpretation
-What the findings suggest about store performance.
+The results suggest that Store Type and Assortment are associated with differences in sales performance and customer traffic.
+
+While some store groups generate higher sales through greater customer volumes, others generate higher revenue per customer visit.
+
+However, the observed differences cannot be attributed solely to Store Type or Assortment, as other factors may influence store performance.
 
 ### Further Investigation
-Potential actions based on the findings.
+Examine whether the differences between store groups remain consistent when accounting for promotional activity, competition distance, and seasonal patterns.
 
-## Q13. 
+Consider the size of each peer group when benchmarking individual stores, particularly for Store Type B, where some combinations contain very few stores.
+
+## Q13. Are there specific days, months, holidays, or seasonal periods when underperforming stores perform particularly poorly?
 
 ### Findings
-Results from the SQL analysis.
+Saturday was identified as the day with the largest additional performance gap among the 629 underperforming stores analysed.
+
+On Saturdays, these stores generated average daily sales 24.66% below their peer benchmarks, compared with an overall average gap of 21.36%, representing an additional disadvantage of 3.30 percentage points.
+
+At store level, Stores 198 and 543 recorded particularly large Saturday performance gaps of 80.89% and 75.08%, respectively.
+
+Monthly differences were considerably smaller. February recorded the largest additional negative gap at just 0.26 percentage points.
+
+School holidays also showed relatively small differences, while state holiday comparisons involved smaller groups of stores.
 
 ### Interpretation
-What the findings suggest about store performance.
+The findings indicate that Saturday is associated with a more pronounced relative sales disadvantage among the underperforming stores analysed.
+
+However, the results do not establish why these differences occur, nor do they indicate that every underperforming store experiences particularly weak Saturday performance.
+
+Monthly and school-holiday patterns show limited additional differences relative to the stores' overall peer benchmarks.
 
 ### Further Investigation
-Potential actions based on the findings.
+Investigate whether the greater Saturday performance gaps are associated with differences in customer traffic, sales per customer, or promotional activity.
+
+Examine individual store patterns to identify which stores consistently experience unusually weak Saturday performance relative to comparable stores

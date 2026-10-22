@@ -781,7 +781,7 @@ SELECT
 
         ELSE 'Other'
 
-    END AS likely_driver
+    END AS main_contributing_component
 
 FROM changes
 
@@ -789,27 +789,185 @@ WHERE sales_change_pct < 0
 
 ORDER BY sales_change_pct ASC;
 
+
+-- ============================================================
+-- Q8. Summary of main contributing components
+-- ============================================================
+
+-- Compare the latest 8 weeks with the previous 8 weeks.
+-- Identify the main component associated with declining sales.
+
+WITH max_date AS (
+    SELECT
+        MAX(full_date) AS latest_date
+    FROM dim_date
+),
+
+period_performance AS (
+    SELECT
+        f.store_id,
+
+        -- Average daily sales
+        AVG(CASE
+            WHEN d.full_date > DATE_SUB(m.latest_date, INTERVAL 8 WEEK)
+            THEN f.sales
+        END) AS recent_avg_daily_sales,
+
+        AVG(CASE
+            WHEN d.full_date <= DATE_SUB(m.latest_date, INTERVAL 8 WEEK)
+            THEN f.sales
+        END) AS previous_avg_daily_sales,
+
+        -- Average daily customers
+        AVG(CASE
+            WHEN d.full_date > DATE_SUB(m.latest_date, INTERVAL 8 WEEK)
+            THEN f.customers
+        END) AS recent_avg_daily_customers,
+
+        AVG(CASE
+            WHEN d.full_date <= DATE_SUB(m.latest_date, INTERVAL 8 WEEK)
+            THEN f.customers
+        END) AS previous_avg_daily_customers,
+
+        -- Sales per customer: recent period
+        SUM(CASE
+            WHEN d.full_date > DATE_SUB(m.latest_date, INTERVAL 8 WEEK)
+            THEN f.sales
+        END)
+        /
+        NULLIF(SUM(CASE
+            WHEN d.full_date > DATE_SUB(m.latest_date, INTERVAL 8 WEEK)
+            THEN f.customers
+        END), 0) AS recent_sales_per_customer,
+
+        -- Sales per customer: previous period
+        SUM(CASE
+            WHEN d.full_date <= DATE_SUB(m.latest_date, INTERVAL 8 WEEK)
+            THEN f.sales
+        END)
+        /
+        NULLIF(SUM(CASE
+            WHEN d.full_date <= DATE_SUB(m.latest_date, INTERVAL 8 WEEK)
+            THEN f.customers
+        END), 0) AS previous_sales_per_customer
+
+    FROM fact_daily_sales f
+    JOIN dim_date d
+        ON f.date_key = d.date_key
+    CROSS JOIN max_date m
+
+    WHERE f.open = 1
+      AND d.full_date > DATE_SUB(m.latest_date, INTERVAL 16 WEEK)
+
+    GROUP BY f.store_id
+),
+
+changes AS (
+    SELECT
+        store_id,
+
+        100.0 *
+        (recent_avg_daily_sales - previous_avg_daily_sales)
+        / NULLIF(previous_avg_daily_sales, 0)
+            AS sales_change_pct,
+
+        100.0 *
+        (recent_avg_daily_customers - previous_avg_daily_customers)
+        / NULLIF(previous_avg_daily_customers, 0)
+            AS customer_change_pct,
+
+        100.0 *
+        (recent_sales_per_customer - previous_sales_per_customer)
+        / NULLIF(previous_sales_per_customer, 0)
+            AS sales_per_customer_change_pct
+
+    FROM period_performance
+),
+
+classified_stores AS (
+    SELECT
+        store_id,
+
+        CASE
+            WHEN customer_change_pct < 0
+                 AND sales_per_customer_change_pct >= 0
+                THEN 'Customer traffic'
+
+            WHEN customer_change_pct >= 0
+                 AND sales_per_customer_change_pct < 0
+                THEN 'Sales per customer'
+
+            WHEN customer_change_pct < 0
+                 AND sales_per_customer_change_pct < 0
+                 AND ABS(customer_change_pct)
+                     > ABS(sales_per_customer_change_pct)
+                THEN 'Mainly customer traffic'
+
+            WHEN customer_change_pct < 0
+                 AND sales_per_customer_change_pct < 0
+                 AND ABS(sales_per_customer_change_pct)
+                     > ABS(customer_change_pct)
+                THEN 'Mainly sales per customer'
+
+            WHEN customer_change_pct < 0
+                 AND sales_per_customer_change_pct < 0
+                THEN 'Both'
+
+            ELSE 'Other'
+
+        END AS main_contributing_component
+
+    FROM changes
+    WHERE sales_change_pct < 0
+)
+
+SELECT
+    main_contributing_component,
+    COUNT(*) AS store_count,
+
+    ROUND(
+        100.0 * COUNT(*) / SUM(COUNT(*)) OVER (),
+        2
+    ) AS percentage_of_stores
+
+FROM classified_stores
+GROUP BY main_contributing_component
+ORDER BY store_count DESC;
+
 -- ============================================================
 -- Q9. How much do promotions increase sales and customer
 --     traffic across stores?
 -- ============================================================
 
--- Average daily sales and customers are compared between
--- promotional and non-promotional days for each store.
--- Only operating days are included.
+-- Compare average daily sales and customers between promotional
+-- and non-promotional days. Only operating days are included.
+
+
+-- ============================================================
+-- 1. STORE-LEVEL PROMOTIONAL PERFORMANCE
+-- ============================================================
 
 WITH promo_performance AS (
     SELECT
         store_id,
 
-        COUNT(CASE WHEN promo = 1 THEN 1 END) AS promo_days,
-        COUNT(CASE WHEN promo = 0 THEN 1 END) AS non_promo_days,
+        SUM(CASE WHEN promo = 1 THEN 1 ELSE 0 END)
+            AS promo_days,
 
-        AVG(CASE WHEN promo = 1 THEN sales END) AS promo_avg_sales,
-        AVG(CASE WHEN promo = 0 THEN sales END) AS non_promo_avg_sales,
+        SUM(CASE WHEN promo = 0 THEN 1 ELSE 0 END)
+            AS non_promo_days,
 
-        AVG(CASE WHEN promo = 1 THEN customers END) AS promo_avg_customers,
-        AVG(CASE WHEN promo = 0 THEN customers END) AS non_promo_avg_customers
+        AVG(CASE WHEN promo = 1 THEN sales END)
+            AS promo_avg_sales,
+
+        AVG(CASE WHEN promo = 0 THEN sales END)
+            AS non_promo_avg_sales,
+
+        AVG(CASE WHEN promo = 1 THEN customers END)
+            AS promo_avg_customers,
+
+        AVG(CASE WHEN promo = 0 THEN customers END)
+            AS non_promo_avg_customers
 
     FROM fact_daily_sales
     WHERE open = 1
@@ -833,8 +991,8 @@ SELECT
         2
     ) AS sales_uplift_pct,
 
-    ROUND(promo_avg_customers, 2) AS promo_avg_customers,
-    ROUND(non_promo_avg_customers, 2) AS non_promo_avg_customers,
+    ROUND(promo_avg_customers, 0) AS promo_avg_customers,
+    ROUND(non_promo_avg_customers, 0) AS non_promo_avg_customers,
 
     ROUND(
         100.0 * (promo_avg_customers - non_promo_avg_customers)
@@ -844,6 +1002,65 @@ SELECT
 
 FROM promo_performance
 ORDER BY sales_uplift_pct DESC;
+
+
+-- ============================================================
+-- 2. OVERALL PROMOTIONAL PERFORMANCE
+-- ============================================================
+
+WITH promo_performance AS (
+    SELECT
+        promo,
+        COUNT(*) AS store_days,
+        AVG(sales) AS avg_daily_sales,
+        AVG(customers) AS avg_daily_customers
+    FROM fact_daily_sales
+    WHERE open = 1
+    GROUP BY promo
+)
+
+SELECT
+    MAX(CASE WHEN promo = 1 THEN store_days END)
+        AS promo_store_days,
+
+    MAX(CASE WHEN promo = 0 THEN store_days END)
+        AS non_promo_store_days,
+
+    ROUND(MAX(CASE WHEN promo = 1 THEN avg_daily_sales END), 2)
+        AS promo_avg_sales,
+
+    ROUND(MAX(CASE WHEN promo = 0 THEN avg_daily_sales END), 2)
+        AS non_promo_avg_sales,
+
+    ROUND(
+        100.0 * (
+            MAX(CASE WHEN promo = 1 THEN avg_daily_sales END) -
+            MAX(CASE WHEN promo = 0 THEN avg_daily_sales END)
+        )
+        / NULLIF(
+            MAX(CASE WHEN promo = 0 THEN avg_daily_sales END), 0
+        ),
+        2
+    ) AS sales_uplift_pct,
+
+    ROUND(MAX(CASE WHEN promo = 1 THEN avg_daily_customers END), 0)
+        AS promo_avg_customers,
+
+    ROUND(MAX(CASE WHEN promo = 0 THEN avg_daily_customers END), 0)
+        AS non_promo_avg_customers,
+
+    ROUND(
+        100.0 * (
+            MAX(CASE WHEN promo = 1 THEN avg_daily_customers END) -
+            MAX(CASE WHEN promo = 0 THEN avg_daily_customers END)
+        )
+        / NULLIF(
+            MAX(CASE WHEN promo = 0 THEN avg_daily_customers END), 0
+        ),
+        2
+    ) AS customers_uplift_pct
+
+FROM promo_performance;
 
 -- ============================================================
 -- Q10. Which stores are highly dependent on promotions,
@@ -1160,14 +1377,21 @@ GROUP BY
 
 ORDER BY avg_daily_sales DESC;
 
+
 -- ============================================================
 -- Q13. Are there specific days, months, holidays, or seasonal
 --      periods when underperforming stores perform poorly?
+--
+-- PART 1: SEASONAL PERFORMANCE PATTERNS
 -- ============================================================
 
--- Underperforming stores are identified using the Q5 peer benchmark.
--- Sales are then compared with similar stores during the same
--- calendar periods, using average sales per operating day.
+-- Compare period-specific performance against similar stores.
+-- Identify periods when underperforming stores fall further
+-- below their usual peer benchmark.
+-- Only operating days are included.
+
+
+-- 1. Overall store performance
 
 WITH store_performance AS (
     SELECT
@@ -1175,30 +1399,51 @@ WITH store_performance AS (
         s.store_type,
         s.assortment,
         AVG(f.sales) AS avg_daily_sales
+
     FROM fact_daily_sales f
     JOIN dim_store s
         ON f.store_id = s.store_id
+
     WHERE f.open = 1
+
     GROUP BY
         f.store_id,
         s.store_type,
         s.assortment
 ),
 
+
+-- 2. Overall peer benchmark
+
 store_benchmark AS (
     SELECT
         *,
+
         AVG(avg_daily_sales) OVER (
             PARTITION BY store_type, assortment
         ) AS peer_avg_sales
+
     FROM store_performance
 ),
 
+
+-- 3. Identify underperforming stores
+
 underperforming_stores AS (
-    SELECT store_id
+    SELECT
+        store_id,
+
+        100.0 * (avg_daily_sales - peer_avg_sales)
+        / NULLIF(peer_avg_sales, 0)
+            AS overall_gap_pct
+
     FROM store_benchmark
+
     WHERE avg_daily_sales < peer_avg_sales
 ),
+
+
+-- 4. Daily sales and calendar information
 
 daily_data AS (
     SELECT
@@ -1210,115 +1455,364 @@ daily_data AS (
         f.state_holiday,
         f.school_holiday,
         f.sales
+
     FROM fact_daily_sales f
     JOIN dim_store s
         ON f.store_id = s.store_id
     JOIN dim_date d
         ON f.date_key = d.date_key
+
     WHERE f.open = 1
 ),
+
+
+-- 5. Performance by calendar period
 
 period_performance AS (
 
     -- Day of week
     SELECT
-        store_id, store_type, assortment,
+        store_id,
+        store_type,
+        assortment,
         'Day of week' AS period_type,
         CAST(day_of_week AS CHAR) AS period_value,
         COUNT(*) AS open_days,
         AVG(sales) AS avg_daily_sales
+
     FROM daily_data
-    GROUP BY store_id, store_type, assortment, day_of_week
+    GROUP BY
+        store_id, store_type, assortment, day_of_week
 
     UNION ALL
 
     -- Month
     SELECT
-        store_id, store_type, assortment,
+        store_id,
+        store_type,
+        assortment,
         'Month',
         CAST(month AS CHAR),
         COUNT(*),
         AVG(sales)
+
     FROM daily_data
-    GROUP BY store_id, store_type, assortment, month
+    GROUP BY
+        store_id, store_type, assortment, month
 
     UNION ALL
 
     -- State holiday
     SELECT
-        store_id, store_type, assortment,
+        store_id,
+        store_type,
+        assortment,
         'State holiday',
         state_holiday,
         COUNT(*),
         AVG(sales)
+
     FROM daily_data
-    GROUP BY store_id, store_type, assortment, state_holiday
+    GROUP BY
+        store_id, store_type, assortment, state_holiday
 
     UNION ALL
 
     -- School holiday
     SELECT
-        store_id, store_type, assortment,
+        store_id,
+        store_type,
+        assortment,
         'School holiday',
         CAST(school_holiday AS CHAR),
         COUNT(*),
         AVG(sales)
+
     FROM daily_data
-    GROUP BY store_id, store_type, assortment, school_holiday
+    GROUP BY
+        store_id, store_type, assortment, school_holiday
 ),
+
+
+-- 6. Minimum observation requirements
 
 qualified_periods AS (
     SELECT *
     FROM period_performance
+
     WHERE open_days >= CASE
-        WHEN period_type IN ('State holiday', 'School holiday')
-            THEN 3
+        WHEN period_type IN (
+            'State holiday',
+            'School holiday'
+        ) THEN 3
         ELSE 5
     END
 ),
 
+
+-- 7. Peer benchmark for each calendar period
+
 period_benchmark AS (
     SELECT
         *,
+
         AVG(avg_daily_sales) OVER (
             PARTITION BY
-                store_type, assortment, period_type, period_value
+                store_type,
+                assortment,
+                period_type,
+                period_value
         ) AS peer_avg_daily_sales,
 
         COUNT(*) OVER (
             PARTITION BY
-                store_type, assortment, period_type, period_value
+                store_type,
+                assortment,
+                period_type,
+                period_value
         ) AS peer_group_size
 
     FROM qualified_periods
 ),
 
+
+-- 8. Calculate relative performance gaps
+
 performance_gaps AS (
     SELECT
-        p.*,
-        ROUND(
-            100.0 * (p.avg_daily_sales - p.peer_avg_daily_sales)
-            / NULLIF(p.peer_avg_daily_sales, 0),
-            2
-        ) AS performance_gap_pct
+        p.store_id,
+        p.period_type,
+        p.period_value,
+        u.overall_gap_pct,
+
+        100.0 * (
+            p.avg_daily_sales - p.peer_avg_daily_sales
+        )
+        / NULLIF(p.peer_avg_daily_sales, 0)
+            AS period_gap_pct
+
     FROM period_benchmark p
     JOIN underperforming_stores u
         ON p.store_id = u.store_id
+
     WHERE p.peer_group_size >= 3
 )
+
+
+-- 9. Summary by calendar period
+
+SELECT
+    period_type,
+    period_value,
+
+    COUNT(DISTINCT store_id) AS stores_analysed,
+
+    ROUND(
+        AVG(period_gap_pct),
+        2
+    ) AS avg_period_gap_pct,
+
+    ROUND(
+        AVG(overall_gap_pct),
+        2
+    ) AS avg_overall_gap_pct,
+
+    ROUND(
+        AVG(period_gap_pct - overall_gap_pct),
+        2
+    ) AS additional_gap_pp
+
+FROM performance_gaps
+
+GROUP BY
+    period_type,
+    period_value
+
+ORDER BY
+    FIELD(
+        period_type,
+        'Day of week',
+        'Month',
+        'State holiday',
+        'School holiday'
+    ),
+    additional_gap_pp ASC;
+
+-- ============================================================
+-- Q13. Which stores experience the largest Saturday
+--      underperformance compared with similar stores?
+--
+-- PART 2: STORE-LEVEL SATURDAY UNDERPERFORMANCE
+-- ============================================================
+
+-- Compare Saturday average daily sales against peer benchmarks.
+-- Identify stores whose Saturday performance is particularly
+-- weak compared with their usual relative performance.
+-- Only operating days are included.
+
+
+-- 1. Overall store performance
+
+WITH store_performance AS (
+    SELECT
+        f.store_id,
+        s.store_type,
+        s.assortment,
+        AVG(f.sales) AS avg_daily_sales
+
+    FROM fact_daily_sales f
+    JOIN dim_store s
+        ON f.store_id = s.store_id
+
+    WHERE f.open = 1
+
+    GROUP BY
+        f.store_id,
+        s.store_type,
+        s.assortment
+),
+
+
+-- 2. Overall peer benchmark
+
+store_benchmark AS (
+    SELECT
+        *,
+
+        AVG(avg_daily_sales) OVER (
+            PARTITION BY store_type, assortment
+        ) AS peer_avg_sales
+
+    FROM store_performance
+),
+
+
+-- 3. Identify underperforming stores
+
+underperforming_stores AS (
+    SELECT
+        store_id,
+        store_type,
+        assortment,
+
+        100.0 * (
+            avg_daily_sales - peer_avg_sales
+        )
+        / NULLIF(peer_avg_sales, 0)
+            AS overall_gap_pct
+
+    FROM store_benchmark
+
+    WHERE avg_daily_sales < peer_avg_sales
+),
+
+
+-- 4. Saturday sales performance
+
+saturday_performance AS (
+    SELECT
+        f.store_id,
+        s.store_type,
+        s.assortment,
+
+        COUNT(*) AS saturday_open_days,
+        AVG(f.sales) AS saturday_avg_sales
+
+    FROM fact_daily_sales f
+
+    JOIN dim_store s
+        ON f.store_id = s.store_id
+
+    JOIN dim_date d
+        ON f.date_key = d.date_key
+
+    WHERE f.open = 1
+      AND d.day_of_week = 6
+
+    GROUP BY
+        f.store_id,
+        s.store_type,
+        s.assortment
+
+    HAVING COUNT(*) >= 5
+),
+
+
+-- 5. Saturday peer benchmark
+
+saturday_benchmark AS (
+    SELECT
+        *,
+
+        AVG(saturday_avg_sales) OVER (
+            PARTITION BY store_type, assortment
+        ) AS peer_saturday_avg_sales,
+
+        COUNT(*) OVER (
+            PARTITION BY store_type, assortment
+        ) AS peer_group_size
+
+    FROM saturday_performance
+),
+
+
+-- 6. Calculate Saturday performance gaps
+
+performance_gaps AS (
+    SELECT
+        s.store_id,
+        s.store_type,
+        s.assortment,
+        s.saturday_open_days,
+        s.saturday_avg_sales,
+        s.peer_saturday_avg_sales,
+        s.peer_group_size,
+
+        u.overall_gap_pct,
+
+        100.0 * (
+            s.saturday_avg_sales - s.peer_saturday_avg_sales
+        )
+        / NULLIF(s.peer_saturday_avg_sales, 0)
+            AS saturday_gap_pct
+
+    FROM saturday_benchmark s
+
+    JOIN underperforming_stores u
+        ON s.store_id = u.store_id
+
+    WHERE s.peer_group_size >= 3
+)
+
+
+-- 7. Top 10 largest negative Saturday performance gaps
 
 SELECT
     store_id,
     store_type,
     assortment,
-    period_type,
-    period_value,
-    open_days,
-    ROUND(avg_daily_sales, 2) AS avg_daily_sales,
-    ROUND(peer_avg_daily_sales, 2) AS peer_avg_daily_sales,
-    performance_gap_pct
+    saturday_open_days,
+    peer_group_size,
+
+    ROUND(saturday_avg_sales, 2)
+        AS saturday_avg_sales,
+
+    ROUND(peer_saturday_avg_sales, 2)
+        AS peer_saturday_avg_sales,
+
+    ROUND(overall_gap_pct, 2)
+        AS overall_gap_pct,
+
+    ROUND(saturday_gap_pct, 2)
+        AS saturday_gap_pct,
+
+    ROUND(
+        saturday_gap_pct - overall_gap_pct,
+        2
+    ) AS additional_gap_pp
 
 FROM performance_gaps
-WHERE performance_gap_pct < 0
-ORDER BY performance_gap_pct ASC
-LIMIT 50;
+
+ORDER BY saturday_gap_pct ASC
+
+LIMIT 10;
